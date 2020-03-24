@@ -13,6 +13,7 @@ from scapy.all import *
 import dpkt
 from natsort import natsorted
 import psutil
+DETACHED_PROCESS = 0x00000008
 
 Input_dir = "Input/"
 has_no_behavior_malware_dir = "has_no_behavior_malware/"
@@ -291,7 +292,33 @@ def check_environment():
 	os.system("cuckoo clean")
 	time.sleep(1)		
 	os.chdir(now_path)
-	subprocess.Popen("python cuckoo.py", shell=True,stdin=None, stdout=None, stderr=None, close_fds=True)
+	
+
+
+
+
+
+
+	#pid = subprocess.Popen([sys.executable, "cuckoo.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+
+	#subprocess.call('start python cuckoo.py', shell=True)
+	#subprocess.call(['gnome-terminal', '-x', 'cuckoo.py'])
+#	subprocess.call(['xterm', '-e', 'python cuckoo.py'])
+	#subprocess.call(['rxvt', '-e', 'python cuckoo.py'])
+
+	os.system("gnome-terminal -x python cuckoo.py")
+
+
+
+	
+
+
+
+
+
+
+
+
 	print("Restart Cuckoo...")	
 	time.sleep(10)
 	
