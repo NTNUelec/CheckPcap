@@ -269,7 +269,7 @@ def check_environment():
 		return False
 	
 	print("=" * 80)
-	print("Now checking Cuckoo is running or not...")
+	print("Now shutdown Cuckoo...")
 	if checkIfProcessRunning("Cuckoo"):
 		listOfProcessIds = findProcessIdByName("Cuckoo")
 		for elem in listOfProcessIds:
@@ -288,7 +288,7 @@ def check_environment():
 	print("Clean the Input directory and stop any analysis...")
 	os.system("cuckoo clean")
 	time.sleep(5)
-	print("Restart Cuckoo")
+	print("Restart Cuckoo...")
 	os.system("cuckoo -d")
 	time.sleep(5)
 	os.chdir(now_path)
