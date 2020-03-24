@@ -1,5 +1,7 @@
 # Check_Pcap
-Check pcap with malicious flow or not
+
+## Get malware(exe)
+1. You can based on https://hackmd.io/yuD9uyblQsiqq9GxESk39w to download malware sample.
 
 ## Install environment
 1. Based on https://hackmd.io/iMQJ_zD-R6CFXAEn_tTnHg to install cuckoo sandbox.
