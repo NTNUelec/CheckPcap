@@ -5,6 +5,7 @@ import logging
 import socket
 import IndicatorTypes
 import time
+import threading
 
 # Third library
 from OTXv2 import OTXv2
@@ -258,6 +259,10 @@ def findProcessIdByName(processName):
  
     return listOfProcessObjects
 
+def open_cuckoo():
+	os.system("cuckoo -d")
+	
+	
 # check the cuckoo and virtualbox is running
 def check_environment():
 	print("=" * 80)
@@ -282,22 +287,25 @@ def check_environment():
 			os.mkdir(neccesary_dir)
 	
 	# clean the database
-	now_path = os.getcwd()	
+	now_path = os.getcwd()		
 	os.chdir(cuckoo_path)
+	
 	print("=" * 80)
 	print("Clean the Input directory and stop any analysis...")
 	os.system("cuckoo clean")
-	time.sleep(5)
+	time.sleep(1)
 	print("Restart Cuckoo...")
-	os.system("cuckoo -d")
-	time.sleep(5)
+	t = threading.Thread(target = open_cuckoo)
+	t.start()
+	time.sleep(10)
+	
 	os.chdir(now_path)
 	
 	return True
 	
 def main():
 	environment_is_ok = check_environment()
-	if environment_is_ok == False:
+	if environment_is_ok == False:		
 		return 
 	
 	print("=" * 80)
