@@ -8,7 +8,7 @@
 2. Run the environment.py to install requirement and make some neccessary directories.
 
 ## Submit exe to analyze
-1. Start cuckoo and virtualBox.
+1. Start virtualBox.
 2. Make sure the Input/ dir is empty.
 2. The exe name will compose of md5 value and ".exe". e.g. "780fff83b0d5b54fc0488d0dd8d0f4d0.exe"
 3. Put the exe which you want to analyze in not_analysis/
@@ -18,5 +18,5 @@
 7. The result would only keep malicious flow.
 
 ## Notice! (Before run filter_out_malicious_pcap.py)
-1. Make sure you open the cuckoo and virtualBox.
+1. Make sure you open the virtualBox.
 2. Make sure the Input/ dir is empty.
