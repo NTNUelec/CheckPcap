@@ -23,7 +23,7 @@ os.chdir("PcapPlusPlus")
 os.system("./configure-linux.sh --default")
 os.system("sudo make")
 os.system("sudo make libs")
-os.system("sudo make install")
+#os.system("sudo make install")
 os.chdir(now_work_path)
 
 # Link /opt/cuckoo/storage/analyses to Input
