@@ -13,6 +13,7 @@ os.system("pip install scapy")
 os.system("pip install OTXv2")
 os.system("pip install dpkt")
 os.system("pip install natsort")
+os.system("pip install psutil")
 
 # PcapPlusPlus install
 if os.path.isdir("PcapPlusPlus") == False:

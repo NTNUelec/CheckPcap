@@ -11,7 +11,7 @@ from OTXv2 import OTXv2
 from scapy.all import *
 import dpkt
 from natsort import natsorted
-import fnmatch
+import psutil
 
 Input_dir = "Input/"
 has_no_behavior_malware_dir = "has_no_behavior_malware/"
@@ -22,7 +22,9 @@ PcapSplitter_path = "./PcapPlusPlus/Examples/PcapSplitter/Bin/PcapSplitter" # Pc
 cuckoo_storage_path = "/opt/cuckoo/storage/analyses/"
 cuckoo_path = "/opt/cuckoo/"
 is_analysis_dir= []
-
+neccesary_dirs = ["not_analysis/", "has_no_behavior_malware/", 
+				 "has_behavior_malware/", "already_analysis/"]
+				 
 url = 'http://ip.taobao.com/service/getIpInfo.php?ip='
 API_KEY = 'f12f1aa045dadd4a269fc9bd74e2a5dd7f2b02eb8fa2111e86d6f7d75dbddc11'  #change your API_Key
 OTX_SERVER = 'https://otx.alienvault.com/'
@@ -221,7 +223,84 @@ def check_result(exe_name):
 	return malicious_pcap_number
 
 
+def checkIfProcessRunning(processName):
+    '''
+    Check if there is any running process that contains the given name processName.
+    '''
+    #Iterate over the all the running process
+    for proc in psutil.process_iter():
+        try:
+            # Check if process name contains the given name string.
+            if processName.lower() in proc.name().lower():
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    return False
+    
+   
+def findProcessIdByName(processName):
+    '''
+    Get a list of all the PIDs of a all the running process whose name contains
+    the given string processName
+    '''
+ 
+    listOfProcessObjects = []
+ 
+    #Iterate over the all the running process
+    for proc in psutil.process_iter():
+       try:
+           pinfo = proc.as_dict(attrs=['pid', 'name', 'create_time'])
+           # Check if process name contains the given name string.
+           if processName.lower() in pinfo['name'].lower() :
+               listOfProcessObjects.append(pinfo)
+       except (psutil.NoSuchProcess, psutil.AccessDenied , psutil.ZombieProcess) :
+           pass
+ 
+    return listOfProcessObjects
+
+# check the cuckoo and virtualbox is running
+def check_environment():
+	print("=" * 80)
+	print("Now checking VirtualBox is running or not...")
+	if checkIfProcessRunning("VirtualBox"):
+		print("OK! VirtualBox is running.")
+	else:
+		print("Please open VirtualBox!")
+		return False
+	
+	print("=" * 80)
+	print("Now checking Cuckoo is running or not...")
+	if checkIfProcessRunning("Cuckoo"):
+		listOfProcessIds = findProcessIdByName("Cuckoo")
+		for elem in listOfProcessIds:
+			processID = elem['pid']
+			os.system("kill " + str(processID))
+			print("kill " + str(processID))	
+	
+	for neccesary_dir in neccesary_dirs:
+		if os.path.isdir(neccesary_dir) == False:
+			os.mkdir(neccesary_dir)
+	
+	# clean the database
+	now_path = os.getcwd()	
+	os.chdir(cuckoo_path)
+	print("=" * 80)
+	print("Clean the Input directory and stop any analysis...")
+	os.system("cuckoo clean")
+	time.sleep(5)
+	print("Restart Cuckoo")
+	os.system("cuckoo -d")
+	time.sleep(5)
+	os.chdir(now_path)
+	
+	return True
+	
 def main():
+	environment_is_ok = check_environment()
+	if environment_is_ok == False:
+		return 
+	
+	print("=" * 80)
 	exe_number = submit_sample_to_cuckoo()	
 	print("Total has " + str(exe_number) + " exe need to run")	
 	
