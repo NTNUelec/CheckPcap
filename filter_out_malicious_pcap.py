@@ -296,8 +296,8 @@ def check_environment():
 		print("Warning! VirtualBox is not running.")
 		print("Now start VirtualBox!")
 		# check you have VirtualBox or not 
-		(status, output) = commands.getstatusoutput('virtualbox --help')
-		if status != 0:
+		bin_file_names = os.listdir("/bin")
+		if "VirtualBox" not in bin_file_names:
 			print("Error! You don't install VirtualBox")
 			return False
 		cmd = "gnome-terminal -x python virtualbox.py"
@@ -331,8 +331,8 @@ def check_environment():
 	print("=" * 80)
 	print("Now clean the Input directory and stop any analysis...")
 	# check you have cuckoo or not 
-	(status, output) = commands.getstatusoutput('cuckoo --help')
-	if status != 0:
+	bin_file_names = os.listdir("/bin")
+	if "cuckoo" not in bin_file_names:
 		print("Error! You don't install cuckoo")
 		return False
 
@@ -352,7 +352,7 @@ def write_result_to_csv():
 	if os.path.isdir(Csv_dir) == False:
 		os.mkdir(Csv_dir)
 
-	file_name = Csv_dir + datetime.datetime.now() + ".csv"
+	file_name = Csv_dir + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + ".csv"
 
 	with open(file_name, 'w') as csvfile:		
 		writer = csv.writer(csvfile)
