@@ -297,7 +297,7 @@ def check_result(exe_name):
 		if os.path.isdir(has_behavior_malware_dir + exe_name):
 			print(exe_name + " has already test, please check")
 			if args.duplicated:
-				cmd = "rm -r" + exe_name
+				cmd = "rm -r " + exe_name
 			else:
 				pcap_names = os.listdir(exe_name)
 				for i, pcap_name in enumerate(pcap_names):					
@@ -309,7 +309,7 @@ def check_result(exe_name):
 	else:
 		if os.path.isdir(has_no_behavior_malware_dir + exe_name):	
 			print(exe_name + " has already test, please check")			
-			cmd = "rm -r" + exe_name
+			cmd = "rm -r " + exe_name
 			os.system(cmd)
 		else:
 			cmd = "mv " + exe_name + " " + has_no_behavior_malware_dir
