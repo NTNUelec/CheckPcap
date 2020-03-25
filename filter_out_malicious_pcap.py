@@ -206,14 +206,14 @@ def check_result(exe_name):
 			cmd = "mv " + exe_name + " " + has_behavior_malware_dir				
 		else:		
 			print(exe_name + " has already test, please check")
-			recaptcha()			
+			#recaptcha()			
 			cmd = "rm -r " + exe_name
 	else:
 		if os.path.isdir(has_no_behavior_malware_dir + exe_name) == False:
 			cmd = "mv " + exe_name + " " + has_no_behavior_malware_dir				
 		else:		
 			print(exe_name + " has already test, please check")
-			recaptcha()
+			#recaptcha()
 			cmd = "rm -r " + exe_name
 		
 	os.system(cmd)
