@@ -5,7 +5,10 @@ import logging
 import socket
 import IndicatorTypes
 import time
-import subprocess
+import commands
+import csv
+import datetime
+import argparse
 
 # Third library
 from OTXv2 import OTXv2
@@ -14,23 +17,30 @@ import dpkt
 from natsort import natsorted
 import psutil
 
-Input_dir = "Input/"
+Input_dir                   = "Input/"
 has_no_behavior_malware_dir = "has_no_behavior_malware/"
 has_behavior_malware_dir    = "has_behavior_malware/"
-not_analysis_dir     = "not_analysis/"
-already_analysis_dir = "already_analysis/"
-PcapSplitter_path = "./PcapPlusPlus/Examples/PcapSplitter/Bin/PcapSplitter" # PcapSplitter path
-cuckoo_storage_path = "/opt/cuckoo/storage/analyses/"
-cuckoo_path = "/opt/cuckoo/"
-is_analysis_dir= []
-neccesary_dirs = ["not_analysis/", "has_no_behavior_malware/", 
-				 "has_behavior_malware/", "already_analysis/"]
+not_analysis_dir            = "not_analysis/"
+already_analysis_dir        = "already_analysis/"
+PcapSplitter_path           = "./PcapPlusPlus/Examples/PcapSplitter/Bin/PcapSplitter" # PcapSplitter path
+cuckoo_storage_path         = "/opt/cuckoo/storage/analyses/"
+cuckoo_path                 = "/opt/cuckoo/"
+Csv_dir                     = "csv_report/"
+neccesary_dirs              = ["not_analysis/", "has_no_behavior_malware/", 
+				 			   "has_behavior_malware/", "already_analysis/"]
+
+was_analysis_dir= []
+result_dic = dict()
+malicious_exe_number = 0
+not_malicious_exe_number = 0
 				 
-url = 'http://ip.taobao.com/service/getIpInfo.php?ip='
 API_KEY = 'f12f1aa045dadd4a269fc9bd74e2a5dd7f2b02eb8fa2111e86d6f7d75dbddc11'  #change your API_Key
 OTX_SERVER = 'https://otx.alienvault.com/'
 otx = OTXv2(API_KEY, server=OTX_SERVER)
 
+parser = argparse.ArgumentParser(description='Download SANS OnDemand videos using this script.')
+parser.add_argument("-d", "--duplicated", help="deprecate duplicated sample", action="store_true")
+args = parser.parse_args()
 
 def getValue(results, keys):
     if type(keys) is list and len(keys) > 0:
@@ -97,7 +107,7 @@ def check_pcap_malicious(pcap):
 	if (DNS in pkt_1):		
 		return False
 		
-	# check with hand shake in tcp
+	# check tcp with hand shake or not 
 	if TCP in pkt_1:
 		if len(pcap) < 4:
 			return False
@@ -139,7 +149,7 @@ def check_have_analysis_or_not():
 	can_be_check_dirs = []
 	
 	for after_running_dir in after_running_dirs:
-		if (after_running_dir not in ['.gitignore', 'latest']) and (after_running_dir not in is_analysis_dir):
+		if (after_running_dir not in ['.gitignore', 'latest']) and (after_running_dir not in was_analysis_dir):
 			log_file_name = Input_dir + after_running_dir + "/cuckoo.log"
 			
 			if os.path.isfile(log_file_name):
@@ -201,22 +211,38 @@ def recaptcha():
 def check_result(exe_name):
 	malicious_pcap_number = len(os.listdir(exe_name))
 	
-	if malicious_pcap_number > 0:
-		if os.path.isdir(has_behavior_malware_dir + exe_name) == False:
-			cmd = "mv " + exe_name + " " + has_behavior_malware_dir				
-		else:		
-			print(exe_name + " has already test, please check")
-			#recaptcha()			
-			cmd = "rm -r " + exe_name
+	if os.path.isdir(has_behavior_malware_dir + exe_name):
+		already_pcap_number = len(os.listdir(has_behavior_malware_dir + exe_name))
 	else:
-		if os.path.isdir(has_no_behavior_malware_dir + exe_name) == False:
-			cmd = "mv " + exe_name + " " + has_no_behavior_malware_dir				
-		else:		
+		already_pcap_number = 0
+
+	pcap_names = os.listdir(exe_name)
+	for i, pcap_name in enimerate(pcap_names):
+		new_pcap_name = exe_name + "_" + str(i + already_pcap_number) + ".pcap"
+		cmd = "mv " + exe_name + "/" + pcap_name + " " + exe_name + "/" + new_pcap_name
+		os.system(cmd)
+
+	if malicious_pcap_number > 0:
+		if os.path.isdir(has_behavior_malware_dir + exe_name):
 			print(exe_name + " has already test, please check")
-			#recaptcha()
-			cmd = "rm -r " + exe_name
-		
-	os.system(cmd)
+			if args.duplicated:
+				cmd = "rm -r" + exe_name
+			else:
+				pcap_names = os.listdir(exe_name)
+				for i, pcap_name in enimerate(pcap_names):					
+					cmd = "mv " + exe_name + "/" + pcap_name + " " + has_behavior_malware_dir + exe_name + "/" + pcap_name
+					os.system(cmd)
+		else:
+			cmd = "mv " + exe_name + " " + has_behavior_malware_dir
+			os.system(cmd)
+	else:
+		if os.path.isdir(has_no_behavior_malware_dir + exe_name):	
+			print(exe_name + " has already test, please check")			
+			cmd = "rm -r" + exe_name
+			os.system(cmd)
+		else:
+			cmd = "mv " + exe_name + " " + has_no_behavior_malware_dir
+			os.system(cmd)
 	
 	cmd = "mv " + not_analysis_dir + exe_name + ".exe" + " " + already_analysis_dir
 	os.system(cmd)
@@ -263,12 +289,20 @@ def findProcessIdByName(processName):
 def check_environment():
 	print("=" * 80)
 	print("Now checking VirtualBox is running or not...")
+
 	if checkIfProcessRunning("VirtualBox"):
 		print("OK! VirtualBox is running.")
 	else:
 		print("Warning! VirtualBox is not running.")
 		print("Now start VirtualBox!")
-		os.system("gnome-terminal -x python virtualbox.py")		
+		# check you have VirtualBox or not 
+		(status, output) = commands.getstatusoutput('virtualbox --help')
+		if status != 0:
+			print("Error! You don't install VirtualBox")
+			return False
+		cmd = "gnome-terminal -x python virtualbox.py"
+		os.system(cmd)
+		time.sleep(5)
 	
 	print("=" * 80)
 	print("Before analyzing, we need to clean database.")
@@ -280,11 +314,12 @@ def check_environment():
 		listOfProcessIds = findProcessIdByName("Cuckoo")
 		for elem in listOfProcessIds:
 			processID = elem['pid']
-			os.system("kill " + str(processID))
+			cmd = "kill " + str(processID)
+			os.system(cmd)
 			print("kill " + str(processID))
 	else:
 		print("OK! Cuckoo is not running.")
-	
+
 	for neccesary_dir in neccesary_dirs:
 		if os.path.isdir(neccesary_dir) == False:
 			os.mkdir(neccesary_dir)
@@ -295,15 +330,36 @@ def check_environment():
 	
 	print("=" * 80)
 	print("Now clean the Input directory and stop any analysis...")
-	os.system("cuckoo clean")
-	time.sleep(1)		
+	# check you have cuckoo or not 
+	(status, output) = commands.getstatusoutput('cuckoo --help')
+	if status != 0:
+		print("Error! You don't install cuckoo")
+		return False
+
+	cmd = "cuckoo clean"
+	os.system(cmd)
+	time.sleep(1)
+
 	os.chdir(now_path)
-	print("Now start Cuckoo...")	
-	os.system("gnome-terminal -x python cuckoo.py")	
+	print("Now start Cuckoo...")
+	cmd = "gnome-terminal -x python cuckoo.py"
+	os.system(cmd)	
 	time.sleep(10)
 	
 	return True
-	
+
+def write_result_to_csv():
+	if os.path.isdir(Csv_dir) == False:
+		os.mkdir(Csv_dir)
+
+	file_name = Csv_dir + datetime.datetime.now() + ".csv"
+
+	with open(file_name, 'w') as csvfile:		
+		writer = csv.writer(csvfile)
+		writer.writerow(['md5 value', '1 time pcap number'])
+		for md5, times in result_dic.items():
+	    	writer.writerow([md5, times])
+
 def main():
 	environment_is_ok = check_environment()
 	if environment_is_ok == False:		
@@ -324,22 +380,35 @@ def main():
 			exe_name = get_exe_name(can_be_check_dir)
 			if exe_name == None:
 				continue		
-			split_pcap(can_be_check_dir, exe_name)		
+
+			split_pcap(can_be_check_dir, exe_name)
+
 			check_malicious_flow(exe_name)
+
 			malicious_pcap_number = check_result(exe_name)
 		
 			print("-" * 80)
 			print(exe_name + " has " + str(malicious_pcap_number) + " malicious flows")
 			print("=" * 80)
 			
-			time.sleep(5)			
-			os.system("rm -r " + Input_dir + can_be_check_dir)
 			exe_number -= 1
-			is_analysis_dir.append(can_be_check_dir)
-			
+			was_analysis_dir.append(can_be_check_dir)
+			result_dic[exe_name] = malicious_pcap_number
+
+			if malicious_pcap_number > 0:
+				malicious_exe_number += 1
+			else:
+				not_malicious_exe_number += 1
+
 		time.sleep(10)			
 	
 	print("Finishing running")
-		
+	print("Malicious exe number: " + str(malicious_exe_number))
+	print("Benign    exe number: " + str(not_malicious_exe_number))
+
+	if len(result_dic) > 0:
+		write_result_to_csv()
+		print("You can see detail in " + Csv_dir)
+
 if __name__ == '__main__':
 	main()
