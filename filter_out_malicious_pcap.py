@@ -5,7 +5,6 @@ import logging
 import socket
 import IndicatorTypes
 import time
-import commands
 import csv
 import datetime
 import argparse
