@@ -291,12 +291,7 @@ def check_environment():
 	os.system("cuckoo clean")
 	time.sleep(1)		
 	os.chdir(now_path)
-	
-
 	os.system("gnome-terminal -x python cuckoo.py")
-
-
-
 	print("Restart Cuckoo...")	
 	time.sleep(10)
 	
