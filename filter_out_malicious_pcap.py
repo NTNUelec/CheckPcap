@@ -27,11 +27,10 @@ cuckoo_path                 = "/opt/cuckoo/"
 Csv_dir                     = "csv_report/"
 neccesary_dirs              = ["not_analysis/", "has_no_behavior_malware/", 
 				 			   "has_behavior_malware/", "already_analysis/"]
+vm_name = "cuckoo1"
 
 was_analysis_dir= []
 result_dic = dict()
-malicious_exe_number = 0
-not_malicious_exe_number = 0
 				 
 API_KEY = 'f12f1aa045dadd4a269fc9bd74e2a5dd7f2b02eb8fa2111e86d6f7d75dbddc11'  #change your API_Key
 OTX_SERVER = 'https://otx.alienvault.com/'
@@ -40,6 +39,139 @@ otx = OTXv2(API_KEY, server=OTX_SERVER)
 parser = argparse.ArgumentParser(description='Download SANS OnDemand videos using this script.')
 parser.add_argument("-d", "--duplicated", help="deprecate duplicated sample", action="store_true")
 args = parser.parse_args()
+
+# Check the cuckoo and virtualbox is running
+def check_environment():
+	print("=" * 80)
+	print("Now checking VirtualBox is running or not...")
+
+	if checkIfProcessRunning("VirtualBox"):
+		print("OK! VirtualBox is running.")
+	else:
+		print("Warning! VirtualBox is not running.")
+		print("Now start VirtualBox!")
+		# check you have VirtualBox or not 
+		usr_bin_file_names = os.listdir("/usr/bin")
+		usr_local_bin_file_names = os.listdir("/usr/local/bin")		
+		if "virtualbox" not in usr_bin_file_names and "virtualbox" not in usr_local_bin_file_names: 
+			print("Error! You don't install VirtualBox")
+			return False
+		cmd = "gnome-terminal -x python virtualbox.py"
+		os.system(cmd)
+		time.sleep(5)
+		cmd = "VBoxManage startvm " + vm_name
+		os.system(cmd)
+		time.sleep(5)
+	
+	print("=" * 80)
+	print("Before analyzing, we need to clean database.")
+	print("Now checking Cuckoo is running or not...")
+	
+	if checkIfProcessRunning("Cuckoo"):
+		print("Warning! Cuckoo is running.")
+		print("Now shutdown Cuckoo...")
+		listOfProcessIds = findProcessIdByName("Cuckoo")
+		for elem in listOfProcessIds:
+			processID = elem['pid']
+			cmd = "kill " + str(processID)
+			os.system(cmd)
+			print("kill " + str(processID))
+	else:
+		print("OK! Cuckoo is not running.")
+
+	for neccesary_dir in neccesary_dirs:
+		if os.path.isdir(neccesary_dir) == False:
+			os.mkdir(neccesary_dir)
+	
+	# clean the database
+	now_path = os.getcwd()		
+	os.chdir(cuckoo_path)
+	
+	print("=" * 80)
+	print("Now clean the Input directory and stop any analysis...")
+	# check you have cuckoo or not 
+	usr_bin_file_names = os.listdir("/usr/bin")
+	usr_local_bin_file_names = os.listdir("/usr/local/bin")		
+	if "cuckoo" not in usr_bin_file_names and "cuckoo" not in usr_local_bin_file_names: 
+		print("Error! You don't install cuckoo")
+		return False
+
+	cmd = "cuckoo clean"
+	os.system(cmd)
+	time.sleep(1)
+
+	os.chdir(now_path)
+	print("Now start Cuckoo...")
+	cmd = "gnome-terminal -x python cuckoo.py"
+	os.system(cmd)	
+	time.sleep(10)
+	
+	return True
+
+# Submit the sample to cuckoo	
+def submit_sample_to_cuckoo():
+
+	exe_names = os.listdir(not_analysis_dir)	
+	now_path = os.getcwd()	
+	os.chdir(cuckoo_path)
+	
+	for exe_name in exe_names:
+		cmd = "cuckoo submit " + now_path + "/" + not_analysis_dir + exe_name
+		os.system(cmd)
+	os.chdir(now_path)
+
+	exe_number = len(exe_names)
+	
+	return exe_number
+
+# Check if there has after running exe or not
+def check_have_analysis_or_not():
+	after_running_dirs = os.listdir(Input_dir)
+	after_running_dirs = natsorted(after_running_dirs)
+	
+	can_be_check_dirs = []
+	
+	for after_running_dir in after_running_dirs:
+		if (after_running_dir not in ['.gitignore', 'latest']) and (after_running_dir not in was_analysis_dir):
+			log_file_name = Input_dir + after_running_dir + "/cuckoo.log"
+			
+			if os.path.isfile(log_file_name):
+				with open(log_file_name, 'r') as f:
+					lines = f.read().splitlines()
+					if len(lines) > 0:						
+						analysis_log = lines[-1]			
+						if analysis_log[-28:] == "analysis procedure completed":
+							 can_be_check_dirs.append(after_running_dir)			
+			
+	return can_be_check_dirs
+
+# Get exe file name based on cuckoo task.json
+def get_exe_name(can_be_check_dir):
+	json_file_path = Input_dir + can_be_check_dir + "/task.json"
+	
+	if os.path.isfile(json_file_path) == False:
+		return None
+	 
+	with open(json_file_path,'r') as file:
+		for i, line in enumerate(file.readlines()):
+			dic = json.loads(line)
+			file_path = dic["target"]
+			exe_name = file_path.split("/")[-1][:-4]
+			
+			if os.path.isdir(exe_name) == False:
+				os.mkdir(exe_name)
+			else:	
+				cmd = "rm -r " + exe_name
+				os.system(cmd)
+				os.mkdir(exe_name)
+				
+			return exe_name
+			
+# Split pcap by 5 tuples rule
+def split_pcap(can_be_check_dir, exe_name):
+	pcap_file_name = Input_dir + can_be_check_dir + "/dump.pcap"
+	cmd = PcapSplitter_path + ' -f ' + pcap_file_name + " -m connection -o " + exe_name
+	os.system(cmd)
 
 # The function used for Check_Ip_malicious
 def getValue(results, keys):
@@ -125,67 +257,6 @@ def check_pcap_malicious(pcap):
 		
 	return Check_Ip_malicious(otx, dst_ip)
 	
-# Submit the sample to cuckoo	
-def submit_sample_to_cuckoo():
-
-	exe_names = os.listdir(not_analysis_dir)	
-	now_path = os.getcwd()	
-	os.chdir(cuckoo_path)
-	
-	for exe_name in exe_names:
-		cmd = "cuckoo submit " + now_path + "/" + not_analysis_dir + exe_name
-		os.system(cmd)
-	os.chdir(now_path)
-
-	exe_number = len(exe_names)
-	
-	return exe_number
-
-# Check if there has after running exe or not
-def check_have_analysis_or_not():
-	after_running_dirs = os.listdir(Input_dir)
-	after_running_dirs = natsorted(after_running_dirs)
-	
-	can_be_check_dirs = []
-	
-	for after_running_dir in after_running_dirs:
-		if (after_running_dir not in ['.gitignore', 'latest']) and (after_running_dir not in was_analysis_dir):
-			log_file_name = Input_dir + after_running_dir + "/cuckoo.log"
-			
-			if os.path.isfile(log_file_name):
-				with open(log_file_name, 'r') as f:
-					lines = f.read().splitlines()
-					if len(lines) > 0:						
-						analysis_log = lines[-1]			
-						if analysis_log[-28:] == "analysis procedure completed":
-							 can_be_check_dirs.append(after_running_dir)			
-			
-	return can_be_check_dirs
-
-# Get exe file name based on cuckoo task.json
-def get_exe_name(can_be_check_dir):
-	json_file_path = Input_dir + can_be_check_dir + "/task.json"
-	
-	if os.path.isfile(json_file_path) == False:
-		return None
-	 
-	with open(json_file_path,'r') as file:
-		for i, line in enumerate(file.readlines()):
-			dic = json.loads(line)
-			file_path = dic["target"]
-			exe_name = file_path.split("/")[-1][:-4]
-			
-			if os.path.isdir(exe_name) == False:
-				os.mkdir(exe_name)
-				
-			return exe_name
-			
-# Split pcap by 5 tuples rule
-def split_pcap(can_be_check_dir, exe_name):
-	pcap_file_name = Input_dir + can_be_check_dir + "/dump.pcap"
-	cmd = PcapSplitter_path + ' -f ' + pcap_file_name + " -m connection -o " + exe_name
-	os.system(cmd)
-
 # Check the every pcap has malicous behavior or not
 def check_malicious_flow(exe_name):
 	split_filenames = os.listdir(exe_name)	
@@ -217,7 +288,7 @@ def check_result(exe_name):
 		already_pcap_number = 0
 
 	pcap_names = os.listdir(exe_name)
-	for i, pcap_name in enimerate(pcap_names):
+	for i, pcap_name in enumerate(pcap_names):
 		new_pcap_name = exe_name + "_" + str(i + already_pcap_number) + ".pcap"
 		cmd = "mv " + exe_name + "/" + pcap_name + " " + exe_name + "/" + new_pcap_name
 		os.system(cmd)
@@ -229,7 +300,7 @@ def check_result(exe_name):
 				cmd = "rm -r" + exe_name
 			else:
 				pcap_names = os.listdir(exe_name)
-				for i, pcap_name in enimerate(pcap_names):					
+				for i, pcap_name in enumerate(pcap_names):					
 					cmd = "mv " + exe_name + "/" + pcap_name + " " + has_behavior_malware_dir + exe_name + "/" + pcap_name
 					os.system(cmd)
 		else:
@@ -277,68 +348,6 @@ def findProcessIdByName(processName):
  
     return listOfProcessObjects
 
-# Check the cuckoo and virtualbox is running
-def check_environment():
-	print("=" * 80)
-	print("Now checking VirtualBox is running or not...")
-
-	if checkIfProcessRunning("VirtualBox"):
-		print("OK! VirtualBox is running.")
-	else:
-		print("Warning! VirtualBox is not running.")
-		print("Now start VirtualBox!")
-		# check you have VirtualBox or not 
-		bin_file_names = os.listdir("/bin")
-		if "VirtualBox" not in bin_file_names:
-			print("Error! You don't install VirtualBox")
-			return False
-		cmd = "gnome-terminal -x python virtualbox.py"
-		os.system(cmd)
-		time.sleep(5)
-	
-	print("=" * 80)
-	print("Before analyzing, we need to clean database.")
-	print("Now checking Cuckoo is running or not...")
-	
-	if checkIfProcessRunning("Cuckoo"):
-		print("Warning! Cuckoo is running.")
-		print("Now shutdown Cuckoo...")
-		listOfProcessIds = findProcessIdByName("Cuckoo")
-		for elem in listOfProcessIds:
-			processID = elem['pid']
-			cmd = "kill " + str(processID)
-			os.system(cmd)
-			print("kill " + str(processID))
-	else:
-		print("OK! Cuckoo is not running.")
-
-	for neccesary_dir in neccesary_dirs:
-		if os.path.isdir(neccesary_dir) == False:
-			os.mkdir(neccesary_dir)
-	
-	# clean the database
-	now_path = os.getcwd()		
-	os.chdir(cuckoo_path)
-	
-	print("=" * 80)
-	print("Now clean the Input directory and stop any analysis...")
-	# check you have cuckoo or not 
-	bin_file_names = os.listdir("/bin")
-	if "cuckoo" not in bin_file_names:
-		print("Error! You don't install cuckoo")
-		return False
-
-	cmd = "cuckoo clean"
-	os.system(cmd)
-	time.sleep(1)
-
-	os.chdir(now_path)
-	print("Now start Cuckoo...")
-	cmd = "gnome-terminal -x python cuckoo.py"
-	os.system(cmd)	
-	time.sleep(10)
-	
-	return True
 
 def write_result_to_csv():
 	if os.path.isdir(Csv_dir) == False:
@@ -347,12 +356,15 @@ def write_result_to_csv():
 	file_name = Csv_dir + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + ".csv"
 
 	with open(file_name, 'w') as csvfile:
-		writer = csv.writer(csvfile)
+		writer = csv.writer(csvfile, delimiter=',')
 		writer.writerow(['md5 value', '1 time pcap number'])
 		for md5, times in result_dic.items():
 			writer.writerow([md5, times])
 
 def main():
+	malicious_exe_number = 0
+	not_malicious_exe_number = 0
+	
 	environment_is_ok = check_environment()
 	if environment_is_ok == False:		
 		return 
