@@ -173,7 +173,7 @@ def split_pcap(can_be_check_dir, exe_name):
 	cmd = PcapSplitter_path + ' -f ' + pcap_file_name + " -m connection -o " + exe_name
 	os.system(cmd)
 
-# The function used for Check_Ip_malicious
+# The function used for check_Ip_malicious
 def getValue(results, keys):
     if type(keys) is list and len(keys) > 0:
 
@@ -192,7 +192,7 @@ def getValue(results, keys):
         return results
 
 # If Ip is malicious, return True else return False
-def Check_Ip_malicious(otx, ip):
+def check_Ip_malicious(otx, ip):
     alerts = []
     try:
         result = otx.get_indicator_details_by_section(IndicatorTypes.IPv4, ip, 'general')
@@ -255,7 +255,7 @@ def check_pcap_malicious(pcap):
 			if (pkt_3_flag & ACK) == False:
 				return False	
 		
-	return Check_Ip_malicious(otx, dst_ip)
+	return check_Ip_malicious(otx, dst_ip)
 	
 # Check the every pcap has malicous behavior or not
 def check_malicious_flow(exe_name):
