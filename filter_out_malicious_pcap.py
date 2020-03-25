@@ -42,6 +42,7 @@ parser = argparse.ArgumentParser(description='Download SANS OnDemand videos usin
 parser.add_argument("-d", "--duplicated", help="deprecate duplicated sample", action="store_true")
 args = parser.parse_args()
 
+# The function used for Check_Ip_malicious
 def getValue(results, keys):
     if type(keys) is list and len(keys) > 0:
 
@@ -125,7 +126,7 @@ def check_pcap_malicious(pcap):
 		
 	return Check_Ip_malicious(otx, dst_ip)
 	
-# submit the sample to cuckoo	
+# Submit the sample to cuckoo	
 def submit_sample_to_cuckoo():
 
 	exe_names = os.listdir(not_analysis_dir)	
@@ -141,7 +142,7 @@ def submit_sample_to_cuckoo():
 	
 	return exe_number
 
-# check if there has after running exe or not
+# Check if there has after running exe or not
 def check_have_analysis_or_not():
 	after_running_dirs = os.listdir(Input_dir)
 	after_running_dirs = natsorted(after_running_dirs)
@@ -162,7 +163,7 @@ def check_have_analysis_or_not():
 			
 	return can_be_check_dirs
 
-# get exe file name based on cuckoo task.json
+# Get exe file name based on cuckoo task.json
 def get_exe_name(can_be_check_dir):
 	json_file_path = Input_dir + can_be_check_dir + "/task.json"
 	
@@ -180,13 +181,13 @@ def get_exe_name(can_be_check_dir):
 				
 			return exe_name
 			
-# split pcap by 5 tuples rule
+# Split pcap by 5 tuples rule
 def split_pcap(can_be_check_dir, exe_name):
 	pcap_file_name = Input_dir + can_be_check_dir + "/dump.pcap"
 	cmd = PcapSplitter_path + ' -f ' + pcap_file_name + " -m connection -o " + exe_name
 	os.system(cmd)
 
-# check the every pcap has malicous behavior or not
+# Check the every pcap has malicous behavior or not
 def check_malicious_flow(exe_name):
 	split_filenames = os.listdir(exe_name)	
 	for split_filename in split_filenames:
@@ -207,7 +208,7 @@ def recaptcha():
 			pass	
 	return 	
 	
-# check the exe malicious flow nubmer
+# Check the exe malicious flow nubmer
 def check_result(exe_name):
 	malicious_pcap_number = len(os.listdir(exe_name))
 	
@@ -249,12 +250,9 @@ def check_result(exe_name):
 	
 	return malicious_pcap_number
 
-
+# Check if there is any running process that contains the given name processName.
 def checkIfProcessRunning(processName):
-    '''
-    Check if there is any running process that contains the given name processName.
-    '''
-    #Iterate over the all the running process
+    # Iterate over the all the running process
     for proc in psutil.process_iter():
         try:
             # Check if process name contains the given name string.
@@ -264,15 +262,10 @@ def checkIfProcessRunning(processName):
             pass
     return False
     
-   
+# Get a list of all the PIDs of a all the running process whose name contains  the given string processName
 def findProcessIdByName(processName):
-    '''
-    Get a list of all the PIDs of a all the running process whose name contains
-    the given string processName
-    '''
- 
     listOfProcessObjects = []
- 
+
     #Iterate over the all the running process
     for proc in psutil.process_iter():
        try:
@@ -285,7 +278,7 @@ def findProcessIdByName(processName):
  
     return listOfProcessObjects
 
-# check the cuckoo and virtualbox is running
+# Check the cuckoo and virtualbox is running
 def check_environment():
 	print("=" * 80)
 	print("Now checking VirtualBox is running or not...")
@@ -354,11 +347,11 @@ def write_result_to_csv():
 
 	file_name = Csv_dir + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + ".csv"
 
-	with open(file_name, 'w') as csvfile:		
+	with open(file_name, 'w') as csvfile:
 		writer = csv.writer(csvfile)
 		writer.writerow(['md5 value', '1 time pcap number'])
 		for md5, times in result_dic.items():
-	    	writer.writerow([md5, times])
+			writer.writerow([md5, times])
 
 def main():
 	environment_is_ok = check_environment()
