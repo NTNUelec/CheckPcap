@@ -266,17 +266,24 @@ def check_environment():
 	if checkIfProcessRunning("VirtualBox"):
 		print("OK! VirtualBox is running.")
 	else:
-		print("Please open VirtualBox!")
-		return False
+		print("Warning! VirtualBox is not running.")
+		print("Now start VirtualBox!")
+		os.system("gnome-terminal -x python virtualbox.py")		
 	
 	print("=" * 80)
-	print("Now shutdown Cuckoo...")
+	print("Before analyzing, we need to clean database.")
+	print("Now checking Cuckoo is running or not...")
+	
 	if checkIfProcessRunning("Cuckoo"):
+		print("Warning! Cuckoo is running.")
+		print("Now shutdown Cuckoo...")
 		listOfProcessIds = findProcessIdByName("Cuckoo")
 		for elem in listOfProcessIds:
 			processID = elem['pid']
 			os.system("kill " + str(processID))
-			print("kill " + str(processID))	
+			print("kill " + str(processID))
+	else:
+		print("OK! Cuckoo is not running.")
 	
 	for neccesary_dir in neccesary_dirs:
 		if os.path.isdir(neccesary_dir) == False:
@@ -287,12 +294,12 @@ def check_environment():
 	os.chdir(cuckoo_path)
 	
 	print("=" * 80)
-	print("Clean the Input directory and stop any analysis...")
+	print("Now clean the Input directory and stop any analysis...")
 	os.system("cuckoo clean")
 	time.sleep(1)		
 	os.chdir(now_path)
-	os.system("gnome-terminal -x python cuckoo.py")
-	print("Restart Cuckoo...")	
+	print("Now start Cuckoo...")	
+	os.system("gnome-terminal -x python cuckoo.py")	
 	time.sleep(10)
 	
 	return True
