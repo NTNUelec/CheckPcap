@@ -303,6 +303,8 @@ def check_result(exe_name):
 				for i, pcap_name in enumerate(pcap_names):					
 					cmd = "mv " + exe_name + "/" + pcap_name + " " + has_behavior_malware_dir + exe_name + "/" + pcap_name
 					os.system(cmd)
+				cmd = "rm -r " + exe_name
+				os.system(cmd)
 		else:
 			cmd = "mv " + exe_name + " " + has_behavior_malware_dir
 			os.system(cmd)
