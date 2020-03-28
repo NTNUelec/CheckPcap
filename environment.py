@@ -1,5 +1,9 @@
 import os
 
+# our library
+from config import *
+
+
 neccesary_dirs = ["not_analysis/", "has_no_behavior_malware/", 
 				 "has_behavior_malware/", "already_analysis/"]
 				
@@ -28,8 +32,6 @@ os.system("sudo make libs")
 os.chdir(now_work_path)
 
 # Link /opt/cuckoo/storage/analyses to Input
-src = "/opt/cuckoo/storage/analyses"
-dst = "Input"
-if os.path.isdir(src) == True and os.path.isdir(dst) == False:
-	os.symlink(src, dst)
+if os.path.isdir(cuckoo_storage_path) == True and os.path.isdir(Input_dir) == False:
+	os.symlink(cuckoo_storage_path, Input_dir)
 	
