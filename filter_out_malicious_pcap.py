@@ -405,6 +405,9 @@ def main():
 				malicious_exe_number += 1
 			else:
 				not_malicious_exe_number += 1
+			
+			cmd = "rm -r " + Input_dir + can_be_check_dir
+			os.system(cmd)
 
 		time.sleep(10)			
 	
