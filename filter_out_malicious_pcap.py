@@ -8,6 +8,7 @@ import time
 import csv
 import datetime
 import argparse
+import requests
 
 # Third library
 from OTXv2 import OTXv2
@@ -21,21 +22,41 @@ from config import *
 
 was_analysis_dir= []
 result_dic = dict()
-				 
-API_KEY = 'f12f1aa045dadd4a269fc9bd74e2a5dd7f2b02eb8fa2111e86d6f7d75dbddc11'  #change your API_Key
-OTX_SERVER = 'https://otx.alienvault.com/'
-otx = OTXv2(API_KEY, server=OTX_SERVER)
 
-parser = argparse.ArgumentParser(description='Download SANS OnDemand videos using this script.')
-parser.add_argument("-d", "--duplicated", help="deprecate duplicated sample", action="store_true")
-args = parser.parse_args()
+# Check if there is any running process that contains the given name processName.
+def check_if_process_running(processName):
+    # Iterate over the all the running process
+    for proc in psutil.process_iter():
+        try:
+            # Check if process name contains the given name string.
+            if processName.lower() in proc.name().lower():
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    return False
+    
+# Get a list of all the PIDs of a all the running process whose name contains  the given string processName
+def get_process_Id_by_name(processName):
+    listOfProcessObjects = []
 
+    #Iterate over the all the running process
+    for proc in psutil.process_iter():
+       try:
+           pinfo = proc.as_dict(attrs=['pid', 'name', 'create_time'])
+           # Check if process name contains the given name string.
+           if processName.lower() in pinfo['name'].lower() :
+               listOfProcessObjects.append(pinfo)
+       except (psutil.NoSuchProcess, psutil.AccessDenied , psutil.ZombieProcess) :
+           pass
+ 
+    return listOfProcessObjects
+    
 # Check the cuckoo and virtualbox is running
 def check_environment():
 	print("=" * 80)
 	print("Now checking VirtualBox is running or not...")
 
-	if checkIfProcessRunning("VirtualBox"):
+	if check_if_process_running("VirtualBox"):
 		print("OK! VirtualBox is running.")
 	else:
 		print("Warning! VirtualBox is not running.")
@@ -57,10 +78,10 @@ def check_environment():
 	print("Before analyzing, we need to clean database.")
 	print("Now checking Cuckoo is running or not...")
 	
-	if checkIfProcessRunning("Cuckoo"):
+	if check_if_process_running("Cuckoo"):
 		print("Warning! Cuckoo is running.")
 		print("Now shutdown Cuckoo...")
-		listOfProcessIds = findProcessIdByName("Cuckoo")
+		listOfProcessIds = get_process_Id_by_name("Cuckoo")
 		for elem in listOfProcessIds:
 			processID = elem['pid']
 			cmd = "kill " + str(processID)
@@ -115,7 +136,7 @@ def submit_sample_to_cuckoo():
 	return exe_number
 
 # Check if there has after running exe or not
-def check_have_analysis_or_not():
+def get_have_analysis_or_not():
 	after_running_dirs = os.listdir(Input_dir)
 	after_running_dirs = natsorted(after_running_dirs)
 	
@@ -163,26 +184,29 @@ def split_pcap(can_be_check_dir, exe_name):
 	cmd = PcapSplitter_path + ' -f ' + pcap_file_name + " -m connection -o " + exe_name
 	os.system(cmd)
 
-# The function used for check_Ip_malicious
-def getValue(results, keys):
+# The function used for check_ip_malicious_alienvault
+def get_value_for_alienvault(results, keys):
     if type(keys) is list and len(keys) > 0:
 
         if type(results) is dict:
             key = keys.pop(0)
             if key in results:
-                return getValue(results[key], keys)
+                return get_value_for_alienvault(results[key], keys)
             else:
                 return None
         else:
             if type(results) is list and len(results) > 0:
-                return getValue(results[0], keys)
+                return get_value_for_alienvault(results[0], keys)
             else:
                 return results
     else:
         return results
 
-# If Ip is malicious, return True else return False
-def check_Ip_malicious(otx, ip):
+# Based on alienvault, check IP is malicious or not
+def check_ip_malicious_alienvault(otx, ip):
+    OTX_SERVER = 'https://otx.alienvault.com/'
+    otx = OTXv2(alienvault_api_key, server=OTX_SERVER)
+
     alerts = []
     try:
         result = otx.get_indicator_details_by_section(IndicatorTypes.IPv4, ip, 'general')
@@ -190,7 +214,7 @@ def check_Ip_malicious(otx, ip):
     except:
     	return False    
     
-    pulses = getValue(result, ['pulse_info', 'pulses'])    
+    pulses = get_value_for_alienvault(result, ['pulse_info', 'pulses'])    
     if pulses:
         for pulse in pulses:
             if 'name' in pulse:            	
@@ -200,9 +224,27 @@ def check_Ip_malicious(otx, ip):
         return True
     else:
         return False
+        
+# Based on alienvault, check IP is malicious or not
+def check_ip_malicious_virustotal(ip):
+	url = 'https://www.virustotal.com/vtapi/v2/ip-address/report'
+	params = {'apikey':virus_total_api_key,'ip': ip}
+
+	response = requests.get(url, params=params)
+	
+	try:
+		result = response.json()['detected_urls'][0]["positives"]
+	except:
+		return False
+	
+	if result > 0:
+		return True
+	else:
+		return False
+		
 
 # If pcap has mailicious flow, return True
-def check_pcap_malicious(pcap):
+def check_flow_malicious(pcap, args):
 	FIN = 0x01
 	SYN = 0x02
 	RST = 0x04
@@ -211,23 +253,42 @@ def check_pcap_malicious(pcap):
 	URG = 0x20
 	ECE = 0x40
 	CWR = 0x80
+	SYN_ACK = (SYN | ACK)
 	
 	pkt_1 = pcap[0]	
 	
 	# check is tcp or udp	
 	if (TCP not in pkt_1) and (UDP not in pkt_1):
 		return False    
-    	
+    
 	dst_ip = pkt_1[IP].dst
-	src_ip = pkt_1[IP].src
+	src_ip = pkt_1[IP].src	
+	
+	if (TCP in pkt_1):
+		dst_port = pkt_1[TCP].dport
+		src_port = pkt_1[TCP].sport
+	elif (UDP in pkt_1):
+		dst_port = pkt_1[UDP].dport
+		src_port = pkt_1[UDP].sport	
 	
 	# check not NTP
 	if (NTP in pkt_1):		
 		return False
 	
-	# check not DNS
-	if (DNS in pkt_1):		
+	# check not NBNS
+	if dst_port == 137 and src_port == 137:
 		return False
+	
+	# check not SSDP
+	if dst_port == 1900:
+		return False	
+	
+	# check not DNS
+	if (DNS in pkt_1):
+		if args.keepdns:
+			return "DNS"
+		else:
+			return False
 		
 	# check tcp with hand shake or not 
 	if TCP in pkt_1:
@@ -238,23 +299,35 @@ def check_pcap_malicious(pcap):
 			pkt_2_flag = pcap[1]['TCP'].flags				
 			pkt_3_flag = pcap[2]['TCP'].flags	
 			
-			if (pkt_1_flag & SYN) == False:
+			if (pkt_1_flag == SYN):
 				return False
-			if (pkt_2_flag & SYN and pkt_2_flag & ACK) == False:
+			if (pkt_2_flag == SYN_ACK):
 				return False
-			if (pkt_3_flag & ACK) == False:
-				return False	
-		
-	return check_Ip_malicious(otx, dst_ip)
+			if (pkt_3_flag == ACK):
+				return False		
+	
+	if args.virustotal:
+		return check_ip_malicious_virustotal(dst_ip)
+	else:
+		return check_ip_malicious_alienvault(otx, dst_ip)
 	
 # Check the every pcap has malicous behavior or not
-def check_malicious_flow(exe_name):
+def check_pcap_malicious(exe_name, args):
 	split_filenames = os.listdir(exe_name)	
 	for split_filename in split_filenames:
 		full_filename = exe_name + "/" + split_filename
 		pcap = rdpcap(full_filename)
-		is_malisious = check_pcap_malicious(pcap)		
-		if is_malisious == False:
+		is_malisious = check_flow_malicious(pcap, args)
+		
+		if is_malisious == "DNS":
+			if args.keepdns:
+				if os.path.isdir("dns_query/" + exe_name) == False:
+					cmd = "mkdir dns_query/" + exe_name
+					os.system(cmd)
+				cmd	= "mv " + exe_name + "/" + split_filename + " " + "dns_query/" + exe_name 				
+				os.system(cmd)
+				
+		elif is_malisious == False:
 			cmd = "rm " + exe_name + "/" + split_filename
 			os.system(cmd)
 			
@@ -269,7 +342,7 @@ def recaptcha():
 	return 	
 	
 # Check the exe malicious flow nubmer
-def check_result(exe_name):
+def check_result(exe_name, args):
 	malicious_pcap_number = len(os.listdir(exe_name))
 	
 	if os.path.isdir(has_behavior_malware_dir + exe_name):
@@ -312,35 +385,7 @@ def check_result(exe_name):
 	
 	return malicious_pcap_number
 
-# Check if there is any running process that contains the given name processName.
-def checkIfProcessRunning(processName):
-    # Iterate over the all the running process
-    for proc in psutil.process_iter():
-        try:
-            # Check if process name contains the given name string.
-            if processName.lower() in proc.name().lower():
-                return True
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-    return False
-    
-# Get a list of all the PIDs of a all the running process whose name contains  the given string processName
-def findProcessIdByName(processName):
-    listOfProcessObjects = []
-
-    #Iterate over the all the running process
-    for proc in psutil.process_iter():
-       try:
-           pinfo = proc.as_dict(attrs=['pid', 'name', 'create_time'])
-           # Check if process name contains the given name string.
-           if processName.lower() in pinfo['name'].lower() :
-               listOfProcessObjects.append(pinfo)
-       except (psutil.NoSuchProcess, psutil.AccessDenied , psutil.ZombieProcess) :
-           pass
- 
-    return listOfProcessObjects
-
-
+# Record the exe and the number of malicious flow which it generates.
 def write_result_to_csv():
 	if os.path.isdir(Csv_dir) == False:
 		os.mkdir(Csv_dir)
@@ -354,6 +399,12 @@ def write_result_to_csv():
 			writer.writerow([md5, times])
 
 def main():
+	parser = argparse.ArgumentParser(description='Download SANS OnDemand videos using this script.')
+	parser.add_argument("-d", "--duplicated", help="If the sample has already run, it will deprecate the pcap result.", action="store_true")
+	parser.add_argument("-v", "--virustotal", help="If you have virustotal api key, you can use this parameter.", action="store_true")
+	parser.add_argument("-k", "--keepdns", help="If you want keep dns query, youyou can use this parameter.", action="store_true")
+	args = parser.parse_args()
+	
 	malicious_exe_number = 0
 	not_malicious_exe_number = 0
 	
@@ -366,7 +417,7 @@ def main():
 	print("Total has " + str(exe_number) + " exe need to run")	
 	
 	while exe_number > 0:
-		can_be_check_dirs = check_have_analysis_or_not()
+		can_be_check_dirs = get_have_analysis_or_not()
 	
 		for can_be_check_dir in can_be_check_dirs:
 			print("=" * 80)
@@ -379,9 +430,9 @@ def main():
 
 			split_pcap(can_be_check_dir, exe_name)
 
-			check_malicious_flow(exe_name)
+			check_pcap_malicious(exe_name, args)
 
-			malicious_pcap_number = check_result(exe_name)
+			malicious_pcap_number = check_result(exe_name, args)
 		
 			print("-" * 80)
 			print(exe_name + " has " + str(malicious_pcap_number) + " malicious flows")

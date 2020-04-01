@@ -46,7 +46,7 @@ def get_malicious_flow_number():
 def get_sort_key_dic(original_dic):
 	new_dic = dict()
 	
-	for key in sorted(original_dic):
+	for key in sorted(original_dic.keys()):
 		new_dic[key] = original_dic[key]
 	
 	return new_dic	
@@ -106,9 +106,15 @@ def get_malicious_ip_and_packet_number():
 	
 	
 def main():
-	ip_times_dic = get_malicious_ip_and_exist_times()
-	for key in ip_times_dic.keys():
-		print(key, ip_times_dic[key])
+	file_name = "analysis.csv"
+	
+	with open(file_name, 'w') as csvfile:
+		writer = csv.writer(csvfile, delimiter=',')
+		writer.writerow(['IP', 'exist times'])		
+			
+		ip_times_dic = get_malicious_ip_and_exist_times()
+		for key in sorted(ip_times_dic.keys()):
+			writer.writerow([key, ip_times_dic[key]])
 
 main()
 			
