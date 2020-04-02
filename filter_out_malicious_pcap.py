@@ -343,6 +343,7 @@ def recaptcha():
 	
 # Check the exe malicious flow nubmer
 def check_result(exe_name, args):
+
 	malicious_pcap_number = len(os.listdir(exe_name))
 	
 	if os.path.isdir(has_behavior_malware_dir + exe_name):
@@ -398,6 +399,37 @@ def write_result_to_csv():
 		for md5, times in result_dic.items():
 			writer.writerow([md5, times])
 
+# Check api key is valid or not (default use alienvault)
+def check_api_key_state(args):
+	print("=" * 80)
+	print("Now checking api key is valid or not...")
+	
+	test_ip = "8.8.8.8"
+	
+	if args.virustotal == False:
+		OTX_SERVER = 'https://otx.alienvault.com/'
+		otx = OTXv2(alienvault_api_key, server=OTX_SERVER)
+		try:
+		    result = otx.get_indicator_details_by_section(IndicatorTypes.IPv4, test_ip, 'general')
+		    print("Your alienVault API Key is valid.")
+		    return True		
+		except:
+			print("Your alienVault API Key is Invalid, Please check")
+			return False 
+    	
+	elif args.virustotal == True:
+		url = 'https://www.virustotal.com/vtapi/v2/ip-address/report'
+		params = {'apikey':virus_total_api_key,'ip': test_ip}
+		response = requests.get(url, params=params)
+	
+		try:
+			result = response.json()
+			print("Your virustotal API Key is valid.")
+			return True
+		except:
+			print("Your virustotal API Key is Invalid, Please check")
+			return False
+    
 def main():
 	parser = argparse.ArgumentParser(description='Download SANS OnDemand videos using this script.')
 	parser.add_argument("-d", "--duplicated", help="If the sample has already run, it will deprecate the pcap result.", action="store_true")
@@ -408,6 +440,11 @@ def main():
 	malicious_exe_number = 0
 	not_malicious_exe_number = 0
 	
+	
+	api_key_is_ok = check_api_key_state(args)
+	if api_key_is_ok == False:		
+		return 
+		
 	environment_is_ok = check_environment()
 	if environment_is_ok == False:		
 		return 

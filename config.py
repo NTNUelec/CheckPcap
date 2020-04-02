@@ -8,7 +8,7 @@ PcapSplitter_path           = "./PcapPlusPlus/Examples/PcapSplitter/Bin/PcapSpli
 Csv_dir                     = "csv_report/"
 neccesary_dirs              = ["not_analysis/", "has_no_behavior_malware/", 
 				 			   "has_behavior_malware/", "already_analysis/"]
-analysis_dir                = "analysis"
+analysis_dir                = "analysis/"
 
 
 # Based on yor setting, below items may be different 	   
