@@ -106,7 +106,10 @@ def get_malicious_ip_and_packet_number():
 	
 	
 def main():
-	file_name = "analysis.csv"
+	if os.path.isdir(analysis_dir) == False:
+		os.mkdir(analysis_dir)
+		
+	file_name = "IP_report_times.csv"
 	
 	with open(file_name, 'w') as csvfile:
 		writer = csv.writer(csvfile, delimiter=',')

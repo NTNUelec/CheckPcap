@@ -295,15 +295,15 @@ def check_flow_malicious(pcap, args):
 		if len(pcap) < 4:
 			return False
 		else:			
-			pkt_1_flag = pcap[0]['TCP'].flags			
-			pkt_2_flag = pcap[1]['TCP'].flags				
-			pkt_3_flag = pcap[2]['TCP'].flags	
+			pkt_1_flag = int(pcap[0]['TCP'].flags)			
+			pkt_2_flag = int(pcap[1]['TCP'].flags)			
+			pkt_3_flag = int(pcap[2]['TCP'].flags)	
 			
-			if (pkt_1_flag == SYN):
+			if (pkt_1_flag != SYN):
 				return False
-			if (pkt_2_flag == SYN_ACK):
+			if (pkt_2_flag != SYN_ACK):
 				return False
-			if (pkt_3_flag == ACK):
+			if (pkt_3_flag != ACK):
 				return False		
 	
 	if args.virustotal:
