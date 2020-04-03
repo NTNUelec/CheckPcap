@@ -6,8 +6,8 @@ not_analysis_dir            = "not_analysis/"
 already_analysis_dir        = "already_analysis/"
 PcapSplitter_path           = "./PcapPlusPlus/Examples/PcapSplitter/Bin/PcapSplitter" # PcapSplitter path
 Csv_dir                     = "csv_report/"
-neccesary_dirs              = ["not_analysis/", "has_no_behavior_malware/", 
-				 			   "has_behavior_malware/", "already_analysis/"]
+neccesary_dirs 				= ["not_analysis/", "has_no_behavior_malware/", 
+				 			   "has_behavior_malware/", "already_analysis/", "dns_query/"]
 analysis_dir                = "analysis/"
 
 

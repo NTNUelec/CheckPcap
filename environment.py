@@ -2,10 +2,6 @@ import os
 
 # our library
 from config import *
-
-
-neccesary_dirs = ["not_analysis/", "has_no_behavior_malware/", 
-				 "has_behavior_malware/", "already_analysis/", "dns_query/"]
 				
 for neccesary_dir in neccesary_dirs:
 	if os.path.isdir(neccesary_dir) == False:

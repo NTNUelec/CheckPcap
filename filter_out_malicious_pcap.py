@@ -89,7 +89,8 @@ def check_environment():
 			print("kill " + str(processID))
 	else:
 		print("OK! Cuckoo is not running.")
-
+	
+	# check you have neccesary directories
 	for neccesary_dir in neccesary_dirs:
 		if os.path.isdir(neccesary_dir) == False:
 			os.mkdir(neccesary_dir)
@@ -434,7 +435,7 @@ def main():
 	parser = argparse.ArgumentParser(description='Download SANS OnDemand videos using this script.')
 	parser.add_argument("-d", "--duplicated", help="If the sample has already run, it will deprecate the pcap result.", action="store_true")
 	parser.add_argument("-v", "--virustotal", help="If you have virustotal api key, you can use this parameter.", action="store_true")
-	parser.add_argument("-k", "--keepdns", help="If you want keep dns query, youyou can use this parameter.", action="store_true")
+	parser.add_argument("-k", "--keepdns",    help="If you want keep dns query, you can use this parameter.", action="store_true")
 	args = parser.parse_args()
 	
 	malicious_exe_number = 0
