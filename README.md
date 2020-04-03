@@ -17,8 +17,8 @@
 ## Get the Results
 1. If the exe has malicious flow, you will see the result in has_behavior_malware/
 2. If the exe has no malicious flow, you will see the result in has_no_behavior_malware/
-3. The result would only keep malicious flow.
-4. The reports will in csv_report/
+3. The results would only keep malicious flow.
+4. The reports is in csv_report/
 
 ## Notice! (Before run filter_out_malicious_pcap.py)
 1. Make sure you have set the iptables. (If you reboot, the iptables may be cleared. You can use "sudo iptables -S" to check)
