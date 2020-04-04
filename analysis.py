@@ -8,6 +8,7 @@ import time
 import csv
 import datetime
 import argparse
+import itertools
 
 # Third library
 from OTXv2 import OTXv2
@@ -16,6 +17,10 @@ import dpkt
 from natsort import natsorted
 import psutil
 import numpy as np
+import networkx as nx
+import matplotlib.pyplot as plt
+import pandas as pd
+import plotly.graph_objects as go
 
 # our library
 from config import *
@@ -199,8 +204,165 @@ def get_malware_and_dns_query():
 		
 	return malware_dns_dic
 	
+
+def get_ip_and_malware_number():
+	sample_file_names = os.listdir(has_behavior_malware_dir)
+	ip_malware_number_dic = dict()
+	
+	for sample_file_name in sample_file_names:
+		pcap_file_names = os.listdir(has_behavior_malware_dir + sample_file_name)
+		ip_set = set()
+		
+		for pcap_file_name in pcap_file_names:
+			pcap_file_path = has_behavior_malware_dir + sample_file_name + "/" + pcap_file_name
+			pcap = open_pcap(pcap_file_path)
+			
+			pkt_1 = pcap[0]
+			ip = pkt_1[IP].dst
+			ip_set.add(ip)
+		
+		for ip in ip_set:
+			if ip not in ip_malware_number_dic.keys():
+				ip_malware_number_dic[ip] = 1
+			else:
+				ip_malware_number_dic[ip] += 1
+		
+	return ip_malware_number_dic
+			
+
+def create_the_edge_node_csv():
+	malware_related_ip_csv = analysis_dir + "Malware_related_ip.csv"	
+
+	with open(malware_related_ip_csv) as csvfile:
+		rows = csv.reader(csvfile)
+		headers = next(rows)
+	
+		total_ip_combinations = set()
+		for row in rows:
+			ip_list = row[1:]
+			ip_combinations = list(itertools.combinations(ip_list, 2))
+		
+			for ip_combination in ip_combinations:			
+				if ip_combination not in total_ip_combinations:
+					total_ip_combinations.add(ip_combination)
+
+
+	IP_malware_number_csv = analysis_dir + "IP_malware_number.csv"	
+	
+	with open(IP_malware_number_csv) as csvfile:
+		rows = csv.reader(csvfile)
+		headers = next(rows)
+	
+		ip_malware_number_dic = dict()
+		for row in rows:
+			ip = row[0]
+			malware_num = int(row[1])
+			ip_malware_number_dic[ip] = malware_num		
+
+	network_edge_file_name = analysis_dir + "network_edge.csv"
+	
+	with open(network_edge_file_name, 'w') as csvfile:
+		writer = csv.writer(csvfile, delimiter=',')		
+		writer.writerow(['source', 'target', 'value'])
+	
+		for ip_combination in total_ip_combinations:
+			src_node = ip_combination[0]
+			dst_node = ip_combination[1]
+			row = [src_node, dst_node, 1]
+			writer.writerow(row)
+
+	network_node_file_name = analysis_dir + "network_node.csv"
+
+	with open(network_node_file_name, 'w') as csvfile:
+		writer = csv.writer(csvfile, delimiter=',')		
+		writer.writerow(['name', 'group', 'nodesize'])
+	
+		for ip in ip_malware_number_dic.keys():
+			row = [ip, 1, ip_malware_number_dic[ip]]
+			writer.writerow(row)
+
+def show_ip_network_figure():
+	G = nx.Graph(day="Stackoverflow")
+	df_nodes = pd.read_csv(analysis_dir + 'network_node.csv')
+	df_edges = pd.read_csv(analysis_dir + 'network_edge.csv')
+
+	for index, row in df_nodes.iterrows():
+		G.add_node(row['name'], group=row['group'], nodesize=row['nodesize'])
+		
+	for index, row in df_edges.iterrows():
+		G.add_weighted_edges_from([(row['source'], row['target'], row['value'])])
+
+	node_pos = nx.spring_layout(G, k=0.25, iterations=50)
+
+	edge_x = []
+	edge_y = []
+	for edge in G.edges():
+		x0, y0 = node_pos[edge[0]]   
+		x1, y1 = node_pos[edge[1]]
+		edge_x.append(x0)
+		edge_x.append(x1)
+		edge_x.append(None)
+		edge_y.append(y0)
+		edge_y.append(y1)
+		edge_y.append(None)
+
+	edge_trace = go.Scatter(
+		x=edge_x, y=edge_y,
+		line=dict(width=1, color='#000000'),
+		hoverinfo='none',
+		mode='lines')
+
+	node_x = []
+	node_y = []
+	for node in G.nodes():   
+		x, y = node_pos[node]
+		node_x.append(x)
+		node_y.append(y)
+
+	node_trace = go.Scatter(
+		x=node_x, y=node_y,
+		mode='markers',
+		hoverinfo='text',
+		marker=dict(
+		    showscale=True,        
+		    colorscale='YlGnBu',
+		    reversescale=True,
+		    color=[],
+		    size=30,
+		    colorbar=dict(
+		        thickness=30,
+		        title='Node Connections',
+		        xanchor='left',
+		        titleside='right'
+		    ),
+		    line_width=2))
+
+
+	node_adjacencies = []
+	node_text = []
+	for node, adjacencies in enumerate(G.adjacency()):
+		node_adjacencies.append(len(adjacencies[1]))
+		node_text.append('IP: ' + str(list(G.nodes())[node]) + '\n' + '# of connections: '+ str(len(adjacencies[1])))
+
+	node_trace.marker.color = node_adjacencies
+	node_trace.text = node_text
+
+
+	fig = go.Figure(data=[edge_trace, node_trace],
+		         layout=go.Layout(
+		            title='IP Network graph',
+		            titlefont_size=24,
+		            showlegend=False,
+		            hovermode='closest',
+		            margin=dict(b=20,l=5,r=5,t=40),                
+		            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+		            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+		            )
+	fig.show()
 	
 def main():
+	print("You need to put dns_query/ , has_behavior_malware/ and all csv files in the same position with this file.")
+	
 	if os.path.isdir(analysis_dir) == False:
 		os.mkdir(analysis_dir)
 	
@@ -214,7 +376,7 @@ def main():
 	
 	print("=" * 80)
 	print("Start count report times of every IP...")
-	file_name = "IP_report_times.csv"	
+	file_name = "IP_flow_number.csv"	
 	with open(analysis_dir + file_name, 'w') as csvfile:
 		writer = csv.writer(csvfile, delimiter=',')
 		writer.writerow(['IP', 'exist times'])		
@@ -283,6 +445,21 @@ def main():
 				row.append(dns)
 			writer.writerow(row)
 	
+	
+	print("=" * 80)
+	print("Start count ip and its malware_number...")
+	file_name = "IP_malware_number.csv"
+	with open(analysis_dir + file_name, 'w') as csvfile:
+		writer = csv.writer(csvfile, delimiter=',')		
+		writer.writerow(['IP', 'malware number'])		
+			
+		ip_malware_number_dic = get_ip_and_malware_number()
+		for key in sorted(ip_malware_number_dic.keys()):
+			writer.writerow([key, ip_malware_number_dic[key]])		
+	
+	print("=" * 80)
+	print("show IP Network...")
+	show_ip_network_figure()
 	
 	print("=" * 80)
 	print("Results are in " + analysis_dir)

@@ -2,7 +2,7 @@ import os
 
 # our library
 from config import *
-				
+
 for neccesary_dir in neccesary_dirs:
 	if os.path.isdir(neccesary_dir) == False:
 		os.mkdir(neccesary_dir)
@@ -15,6 +15,9 @@ os.system("pip install dpkt")
 os.system("pip install natsort")
 os.system("pip install psutil")
 os.system("pip install whois")
+os.system("pip install networkx")
+os.system("pip install matplotlib")
+os.system("pip install plotly")
 
 # PcapPlusPlus install
 if os.path.isdir("PcapPlusPlus") == False:
