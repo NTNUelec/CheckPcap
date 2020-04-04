@@ -27,9 +27,28 @@ def open_pcap(path):
 	
 	
 def get_malicious_and_benign_sample_number():
-	malicious_sample_number = len(os.listdir(has_behavior_malware_dir))
-	benign_sample_number    = len(os.listdir(has_no_behavior_malware_dir))
-
+	malicious_sample_number = 0
+	benign_sample_number    = 0
+	
+	file_names = os.listdir("./")
+	csv_file_names = []
+	for file_name in file_names:
+		if file_name[-4:] == ".csv":
+			csv_file_names.append(file_name)			
+	
+	for csv_file_name in csv_file_names:
+		with open(csv_file_name) as csvfile:
+			rows = csv.reader(csvfile)
+			headers = next(rows)
+			
+			for row in rows:
+				malicious_flow_num = int(row[1])
+				
+				if malicious_flow_num > 0:
+					malicious_sample_number += 1
+				else:
+					benign_sample_number += 1
+	
 	return malicious_sample_number, benign_sample_number
 
 
