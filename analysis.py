@@ -9,6 +9,7 @@ import csv
 import datetime
 import argparse
 import itertools
+import os
 
 # Third library
 from OTXv2 import OTXv2
