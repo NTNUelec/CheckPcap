@@ -396,7 +396,7 @@ def main():
 	if os.path.isdir(analysis_dir) == False:
 		os.mkdir(analysis_dir)
 	
-	"""
+	
 	print("=" * 80)
 	malicious_sample_number, benign_sample_number = get_malicious_and_benign_sample_number()
 	malicious_flow_number = get_malicious_flow_number()
@@ -489,8 +489,7 @@ def main():
 	
 	print("=" * 80)
 	print("show IP Network...")
-	show_ip_network_figure()
-	"""
+	show_ip_network_figure()	
 	
 	print("=" * 80)
 	print("Start count malware and its type...")

@@ -126,15 +126,16 @@ def submit_sample_to_cuckoo():
 	exe_names = os.listdir(not_analysis_dir)	
 	now_path = os.getcwd()	
 	os.chdir(cuckoo_path)
+	exe_number = 0
 	
 	for exe_name in exe_names:
 		if exe_name[-4:] != ".exe":
 			continue
 		cmd = "cuckoo submit " + now_path + "/" + not_analysis_dir + exe_name
 		os.system(cmd)
+		exe_number += 1
+		
 	os.chdir(now_path)
-
-	exe_number = len(exe_names)
 	
 	return exe_number
 
@@ -206,7 +207,7 @@ def get_value_for_alienvault(results, keys):
         return results
 
 # Based on alienvault, check IP is malicious or not
-def check_ip_malicious_alienvault(otx, ip):
+def check_ip_malicious_alienvault(ip):
     OTX_SERVER = 'https://otx.alienvault.com/'
     otx = OTXv2(alienvault_api_key, server=OTX_SERVER)
 
@@ -312,7 +313,7 @@ def check_flow_malicious(pcap, args):
 	if args.virustotal:
 		return check_ip_malicious_virustotal(dst_ip)
 	else:
-		return check_ip_malicious_alienvault(otx, dst_ip)
+		return check_ip_malicious_alienvault(dst_ip)
 	
 # Check the every pcap has malicous behavior or not
 def check_pcap_malicious(exe_name, args):
