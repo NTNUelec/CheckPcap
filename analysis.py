@@ -125,36 +125,55 @@ def get_malicious_ip_and_country():
 	return ip_country_dic	
 				
 				
-def get_malicious_ip_and_packet_len():
+def get_malicious_ip_and_packet_len_duration():
 	sample_file_names = os.listdir(has_behavior_malware_dir)
 	ip_packet_dic = dict()
-	
+	ip_duration_dic   = dict()
+
 	for sample_file_name in sample_file_names:
 		pcap_file_names = os.listdir(has_behavior_malware_dir + sample_file_name)
 		for pcap_file_name in pcap_file_names:
 			pcap_file_path = has_behavior_malware_dir + sample_file_name + "/" + pcap_file_name
 			pcap = open_pcap(pcap_file_path)
-			
-			pkt_1 = pcap[0]
+		
+			pkt_1 = pcap[0]		
 			malicious_ip = pkt_1[IP].dst
 			packet_num = len(pcap)
-			
+		
 			if malicious_ip not in ip_packet_dic.keys():
 				ip_packet_dic[malicious_ip] = list()				
-		
-			ip_packet_dic[malicious_ip].append(packet_num)
 	
+			ip_packet_dic[malicious_ip].append(packet_num)
+				
+			pkt_n = pcap[-1]
+			start_time = pkt_1.time
+			end_time   = pkt_n.time
+			duration   = end_time - start_time
+		
+			if malicious_ip not in ip_time_dic.keys():
+				ip_duration_dic[malicious_ip] = list()
+		
+			ip_duration_dic[malicious_ip].append(duration)
+
+
 	ip_ave_packet_dic = dict()
 	ip_std_packet_dic = dict()
-	
+	ip_ave_duration_dic = dict()
+	ip_std_duration_dic = dict()
+
 	for key in ip_packet_dic.keys():
 		ip_ave_packet_dic[key] = np.average(ip_packet_dic[key])
 		ip_std_packet_dic[key] = np.std(ip_packet_dic[key])
+		ip_ave_duration_dic[key] = np.average(ip_duration_dic[key])
+		ip_std_duration_dic[key] = np.std(ip_duration_dic[key])
 	
 	ip_ave_packet_dic = get_sort_key_dic(ip_ave_packet_dic)
 	ip_std_packet_dic = get_sort_key_dic(ip_std_packet_dic)
-	
-	return ip_ave_packet_dic, ip_std_packet_dic
+	ip_ave_duration_dic = get_sort_key_dic(ip_ave_duration_dic)
+	ip_std_duration_dic = get_sort_key_dic(ip_std_duration_dic)
+
+	return ip_ave_packet_dic, ip_std_packet_dic, ip_ave_duration_dic, ip_std_duration_dic
+
 
 
 def get_malware_and_related_ip():
@@ -419,14 +438,14 @@ def main():
 	
 	print("=" * 80)
 	print("Start count packet length of every IP...")
-	file_name = "IP_packet_len.csv"	
+	file_name = "IP_packet_len_duration.csv"	
 	with open(analysis_dir + file_name, 'w') as csvfile:
 		writer = csv.writer(csvfile, delimiter=',')
-		writer.writerow(['IP', 'ave pkt len', 'std pkt len'])		
+		writer.writerow(['IP', 'ave pkt len', 'std pkt len', 'ave duration', 'std duration'])		
 			
-		ip_ave_packet_dic, ip_std_packet_dic = get_malicious_ip_and_packet_len()
+		ip_ave_packet_dic, ip_std_packet_dic, ip_ave_duration_dic, ip_std_duration_dic = get_malicious_ip_and_packet_len_duration()
 		for key in sorted(ip_ave_packet_dic.keys()):
-			writer.writerow([key, int(ip_ave_packet_dic[key]), int(ip_std_packet_dic[key])])
+			writer.writerow([key, int(ip_ave_packet_dic[key]), int(ip_std_packet_dic[key]), int(ip_ave_duration_dic[key]), int(ip_std_duration_dic[key])])
 	
 	print("=" * 80)
 	print("Start count related ip of every Malware...")
