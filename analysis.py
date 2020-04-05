@@ -360,12 +360,43 @@ def show_ip_network_figure():
 		            )
 	fig.show()
 	
+
+def get_malware_and_type():
+	filter_list = ["None", "Win32", "A", "Malware"]
+	malware_type_dic = dict()
+	sample_file_names = os.listdir("already_analysis/")
+
+	for sample_file_name in sample_file_names:
+		if sample_file_name[-5:] == ".json":
+			with open("already_analysis/" + sample_file_name) as json_file:
+				data = json.load(json_file)
+			
+			malware_type_times_dic = dict()
+			for company in data["scans"].keys():
+				malware_types = str(data["scans"][company]["result"]).split(".")
+				for malware_type in malware_types:
+					if malware_type not in malware_type_times_dic.keys():
+						malware_type_times_dic[malware_type] = 1
+					else:
+						malware_type_times_dic[malware_type] += 1
+		
+			malware_type_times_dic = sorted(malware_type_times_dic.items(), key = lambda d: d[1]) 
+		
+			for malware_type_set in malware_type_times_dic[::-1]:					
+				if malware_type_set[0] not in filter_list:
+					malware_type_dic[sample_file_name[:-5]] = malware_type_set[0]
+					break
+
+	return malware_type_dic
+	
+	
 def main():
 	print("You need to put dns_query/ , has_behavior_malware/ and all csv files in the same position with this file.")
 	
 	if os.path.isdir(analysis_dir) == False:
 		os.mkdir(analysis_dir)
 	
+	"""
 	print("=" * 80)
 	malicious_sample_number, benign_sample_number = get_malicious_and_benign_sample_number()
 	malicious_flow_number = get_malicious_flow_number()
@@ -443,8 +474,7 @@ def main():
 			row = [key]
 			for dns in dns_set:
 				row.append(dns)
-			writer.writerow(row)
-	
+			writer.writerow(row)	
 	
 	print("=" * 80)
 	print("Start count ip and its malware_number...")
@@ -460,7 +490,19 @@ def main():
 	print("=" * 80)
 	print("show IP Network...")
 	show_ip_network_figure()
+	"""
 	
+	print("=" * 80)
+	print("Start count malware and its type...")
+	file_name = "Malware_type.csv"
+	with open(analysis_dir + file_name, 'w') as csvfile:
+		writer = csv.writer(csvfile, delimiter=',')		
+		writer.writerow(['Malware', 'type'])		
+		
+		malware_type_dic = get_malware_and_type()
+		for key in sorted(malware_type_dic.keys()):
+			writer.writerow([key, malware_type_dic[key]])		
+		
 	print("=" * 80)
 	print("Results are in " + analysis_dir)
 

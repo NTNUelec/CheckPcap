@@ -128,6 +128,8 @@ def submit_sample_to_cuckoo():
 	os.chdir(cuckoo_path)
 	
 	for exe_name in exe_names:
+		if exe_name[-4:] != ".exe":
+			continue
 		cmd = "cuckoo submit " + now_path + "/" + not_analysis_dir + exe_name
 		os.system(cmd)
 	os.chdir(now_path)
