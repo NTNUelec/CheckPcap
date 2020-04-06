@@ -36,14 +36,14 @@ def get_malicious_and_benign_sample_number():
 	malicious_sample_number = 0
 	benign_sample_number    = 0
 	
-	file_names = os.listdir("./")
+	file_names = os.listdir(Csv_dir)
 	csv_file_names = []
 	for file_name in file_names:
 		if file_name[-4:] == ".csv":
 			csv_file_names.append(file_name)			
 	
 	for csv_file_name in csv_file_names:
-		with open(csv_file_name) as csvfile:
+		with open(Csv_dir + csv_file_name) as csvfile:
 			rows = csv.reader(csvfile)
 			headers = next(rows)
 			
@@ -127,8 +127,8 @@ def get_malicious_ip_and_country():
 				
 def get_malicious_ip_and_packet_len_duration():
 	sample_file_names = os.listdir(has_behavior_malware_dir)
-	ip_packet_dic = dict()
-	ip_duration_dic   = dict()
+	ip_packet_dic   = dict()
+	ip_duration_dic = dict()
 
 	for sample_file_name in sample_file_names:
 		pcap_file_names = os.listdir(has_behavior_malware_dir + sample_file_name)
@@ -150,7 +150,7 @@ def get_malicious_ip_and_packet_len_duration():
 			end_time   = pkt_n.time
 			duration   = end_time - start_time
 		
-			if malicious_ip not in ip_time_dic.keys():
+			if malicious_ip not in ip_duration_dic.keys():
 				ip_duration_dic[malicious_ip] = list()
 		
 			ip_duration_dic[malicious_ip].append(duration)
@@ -411,7 +411,7 @@ def get_malware_and_type():
 	
 	
 def main():
-	print("You need to put dns_query/ , has_behavior_malware/ and all csv files in the same position with this file.")
+	print("You need to put dns_query/ , has_behavior_malware/ and csv_report/ in the same position with this file.")
 	
 	if os.path.isdir(analysis_dir) == False:
 		os.mkdir(analysis_dir)
