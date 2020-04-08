@@ -509,6 +509,7 @@ def main():
 	
 	print("=" * 80)
 	print("show IP Network...")
+	create_the_edge_node_csv()
 	show_ip_network_figure()	
 	
 	print("=" * 80)
