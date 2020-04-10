@@ -150,7 +150,7 @@ def get_have_analysis_or_not():
     
     for after_running_dir in after_running_dirs:
         if (after_running_dir not in ['.gitignore', 'latest']) and (after_running_dir not in was_analysis_dir):
-            log_file_name = Input_dir + after_running_dir + "/cuckoo.log"
+            log_file_name = Input_dir + "/" +  after_running_dir + "/cuckoo.log"
             
             if os.path.isfile(log_file_name):
                 with open(log_file_name, 'r') as f:
@@ -164,7 +164,7 @@ def get_have_analysis_or_not():
 
 # Get exe file name based on cuckoo task.json
 def get_exe_name(can_be_check_dir):
-    json_file_path = Input_dir + can_be_check_dir + "/task.json"
+    json_file_path = Input_dir + "/" + can_be_check_dir + "/task.json"
     
     if os.path.isfile(json_file_path) == False:
         return None
@@ -186,7 +186,7 @@ def get_exe_name(can_be_check_dir):
             
 # Split pcap by 5 tuples rule
 def split_pcap(can_be_check_dir, exe_name):
-    pcap_file_name = Input_dir + can_be_check_dir + "/dump.pcap"
+    pcap_file_name = Input_dir + "/" + can_be_check_dir + "/dump.pcap"
     cmd = PcapSplitter_path + ' -f ' + pcap_file_name + " -m connection -o " + exe_name
     os.system(cmd)
 
@@ -498,7 +498,7 @@ def main():
             else:
                 not_malicious_exe_number += 1
             
-            cmd = "rm -r " + Input_dir + can_be_check_dir
+            cmd = "rm -r " + Input_dir + "/" + can_be_check_dir
             os.system(cmd)
 
         time.sleep(10)          
