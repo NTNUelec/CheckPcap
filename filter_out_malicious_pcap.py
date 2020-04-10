@@ -133,7 +133,7 @@ def submit_sample_to_cuckoo(args):
         if exe_name[-4:] != ".exe":
             continue
         for i in range(args.count):
-            cmd = "cuckoo submit --timeout " + timeout + " " + now_path + "/" + not_analysis_dir + exe_name
+            cmd = "cuckoo submit --timeout " + str(timeout) + " " + now_path + "/" + not_analysis_dir + exe_name
             os.system(cmd)
             exe_number += 1
         
