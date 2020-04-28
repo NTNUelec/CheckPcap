@@ -262,13 +262,11 @@ def check_flow_malicious(pcap, args):
     CWR = 0x80
     SYN_ACK = (SYN | ACK)
     
-    pkt_1 = pcap[0] 
-    
-    
+    pkt_1 = pcap[0]     
     
     # check is tcp or udp   
     if (TCP not in pkt_1) and (UDP not in pkt_1):
-        return False,'notfound','notfound'    
+        return False, 'notfound', 'notfound'    
 
     dst_ip = pkt_1[IP].dst
     src_ip = pkt_1[IP].src  
@@ -279,57 +277,56 @@ def check_flow_malicious(pcap, args):
     elif (UDP in pkt_1):
         dst_port = pkt_1[UDP].dport
         src_port = pkt_1[UDP].sport
-
-    ip_info=None
+	
+	# query IP info
+    ip_info = None
     try:
-        ip_info_url="http://ip-api.com/json/"+dst_ip+"?fbclid=IwAR0trByJ6IdU2KCFw7eM7I6Nz_yoBSj980iJCM8UFbpd2kNKik3-YFfqYFA"
+        ip_info_url = "http://ip-api.com/json/" + dst_ip + "?fbclid=IwAR0trByJ6IdU2KCFw7eM7I6Nz_yoBSj980iJCM8UFbpd2kNKik3-YFfqYFA"
         ip_info_res = requests.get(ip_info_url)
-        ip_info=ip_info_res.json()
+        ip_info = ip_info_res.json()
     except:
         time.sleep(5)
-        return False,'notfound','notfound'
+        return False, 'notfound', 'notfound'
 
-    if ip_info['status']=='fail':
-        ip_info['country']='notfound'
-
-
-
+    if ip_info['status'] == 'fail':
+        ip_info['country'] = 'notfound'
+        
     
     # check not NTP
     if (NTP in pkt_1):      
-        return False,dst_ip,ip_info['country']    
+        return False, dst_ip, ip_info['country']    
     
     # check not NBNS
     if dst_port == 137 and src_port == 137:
-        return False,dst_ip,ip_info['country']    
+        return False, dst_ip, ip_info['country']    
     
     # check not SSDP
     if dst_port == 1900:
-        return False,dst_ip,ip_info['country']        
+        return False, dst_ip, ip_info['country']        
     
     # check not DNS
     if (DNS in pkt_1):
         if args.keepdns:
             domain_name = pkt_1[DNS].summary().split(" ")[-2].strip('"').strip('.')
-            return "DNS",domain_name,ip_info['country']    
+            return "DNS", domain_name, ip_info['country']    
         else:
-            return False,dst_ip,ip_info['country']    
+            return False, dst_ip, ip_info['country']    
         
     # check tcp with hand shake or not 
     if TCP in pkt_1:
         if len(pcap) < 4:
-            return False,dst_ip,ip_info['country']    
+            return False, dst_ip, ip_info['country']    
         else:           
             pkt_1_flag = int(pcap[0]['TCP'].flags)          
             pkt_2_flag = int(pcap[1]['TCP'].flags)          
             pkt_3_flag = int(pcap[2]['TCP'].flags)  
             
             if (pkt_1_flag != SYN):
-                return False,dst_ip,ip_info['country']    
+                return False, dst_ip, ip_info['country']    
             if (pkt_2_flag != SYN_ACK):
-                return False,dst_ip,ip_info['country']    
+                return False, dst_ip, ip_info['country']  
             if (pkt_3_flag != ACK):
-                return False,dst_ip,ip_info['country']            
+                return False, dst_ip, ip_info['country']      
 
 
     if args.filterbenign:
@@ -337,9 +334,9 @@ def check_flow_malicious(pcap, args):
         lines = fp.readlines()
         fp.close()
         for line in lines:
-            benign_ip=line.strip()
-            if dst_ip==benign_ip:
-                return False,dst_ip,ip_info['country']    
+            benign_ip = line.strip()
+            if dst_ip == benign_ip:
+                return False, dst_ip, ip_info['country']    
     
     
     if args.virustotal:
