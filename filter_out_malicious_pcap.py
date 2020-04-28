@@ -9,6 +9,7 @@ import csv
 import datetime
 import argparse
 import requests
+import json
 
 # Third library
 from OTXv2 import OTXv2
@@ -263,10 +264,12 @@ def check_flow_malicious(pcap, args):
     
     pkt_1 = pcap[0] 
     
+    
+    
     # check is tcp or udp   
     if (TCP not in pkt_1) and (UDP not in pkt_1):
-        return False    
-    
+        return False,'notfound','notfound'    
+
     dst_ip = pkt_1[IP].dst
     src_ip = pkt_1[IP].src  
     
@@ -275,55 +278,85 @@ def check_flow_malicious(pcap, args):
         src_port = pkt_1[TCP].sport
     elif (UDP in pkt_1):
         dst_port = pkt_1[UDP].dport
-        src_port = pkt_1[UDP].sport 
+        src_port = pkt_1[UDP].sport
+
+    ip_info=None
+    try:
+        ip_info_url="http://ip-api.com/json/"+dst_ip+"?fbclid=IwAR0trByJ6IdU2KCFw7eM7I6Nz_yoBSj980iJCM8UFbpd2kNKik3-YFfqYFA"
+        ip_info_res = requests.get(ip_info_url)
+        ip_info=ip_info_res.json()
+    except:
+        time.sleep(5)
+        return False,'notfound','notfound'
+
+    if ip_info['status']=='fail':
+        ip_info['country']='notfound'
+
+
+
     
     # check not NTP
     if (NTP in pkt_1):      
-        return False
+        return False,dst_ip,ip_info['country']    
     
     # check not NBNS
     if dst_port == 137 and src_port == 137:
-        return False
+        return False,dst_ip,ip_info['country']    
     
     # check not SSDP
     if dst_port == 1900:
-        return False    
+        return False,dst_ip,ip_info['country']        
     
     # check not DNS
     if (DNS in pkt_1):
         if args.keepdns:
-            return "DNS"
+            domain_name = pkt_1[DNS].summary().split(" ")[-2].strip('"').strip('.')
+            return "DNS",domain_name,ip_info['country']    
         else:
-            return False
+            return False,dst_ip,ip_info['country']    
         
     # check tcp with hand shake or not 
     if TCP in pkt_1:
         if len(pcap) < 4:
-            return False
+            return False,dst_ip,ip_info['country']    
         else:           
             pkt_1_flag = int(pcap[0]['TCP'].flags)          
             pkt_2_flag = int(pcap[1]['TCP'].flags)          
             pkt_3_flag = int(pcap[2]['TCP'].flags)  
             
             if (pkt_1_flag != SYN):
-                return False
+                return False,dst_ip,ip_info['country']    
             if (pkt_2_flag != SYN_ACK):
-                return False
+                return False,dst_ip,ip_info['country']    
             if (pkt_3_flag != ACK):
-                return False        
+                return False,dst_ip,ip_info['country']            
+
+
+    if args.filterbenign:
+        fp = open('benign_ip_list.txt', "r")
+        lines = fp.readlines()
+        fp.close()
+        for line in lines:
+            benign_ip=line.strip()
+            if dst_ip==benign_ip:
+                return False,dst_ip,ip_info['country']    
+    
     
     if args.virustotal:
-        return check_ip_malicious_virustotal(dst_ip)
+        return check_ip_malicious_virustotal(dst_ip), dst_ip, ip_info['country']
     else:
-        return check_ip_malicious_alienvault(dst_ip)
+        return check_ip_malicious_alienvault(dst_ip), dst_ip, ip_info['country']
     
 # Check the every pcap has malicous behavior or not
 def check_pcap_malicious(exe_name, args):
+    ip_info={}
+    domain_name_list=[]
+
     split_filenames = os.listdir(exe_name)  
     for split_filename in split_filenames:
         full_filename = exe_name + "/" + split_filename
         pcap = rdpcap(full_filename)
-        is_malisious = check_flow_malicious(pcap, args)
+        is_malisious, flow_dst_ip, flow_dst_ip_country = check_flow_malicious(pcap, args)
         
         if is_malisious == "DNS":
             if args.keepdns:
@@ -336,6 +369,16 @@ def check_pcap_malicious(exe_name, args):
         elif is_malisious == False:
             cmd = "rm " + exe_name + "/" + split_filename
             os.system(cmd)
+
+        if is_malisious != "DNS" and is_malisious==True:
+            ip_info[flow_dst_ip] = flow_dst_ip_country
+        elif is_malisious == "DNS":
+            default_dns = ["ipv6.msftncsi.com",	"teredo.ipv6.microsoft.com", "1.56.168.192.in-addr.arpa", "dns.msftncsi.com"]
+            if flow_dst_ip not in default_dns:
+                domain_name_list.append(flow_dst_ip)
+    
+    return ip_info, list(set(domain_name_list))
+
             
 # If you submit duplicated sample, it will alert
 def recaptcha():
@@ -441,14 +484,37 @@ def check_api_key_state(args):
         except:
             print("Your virustotal API Key is Invalid, Please check")
             return False
+
+
+def generate_json_analysis(args, ip_info, domain_name_list, malicious_pcap_number):
+	if args.jsonformat:
+		malware_json = None
+		
+		json_path = "malware_jsons/" + exe_name + ".json"
+		with open(json_path) as json_file:
+		    malware_json = json.load(json_file)
+		json_file.close()
+
+		malware_json['ip_info'] = ip_info
+		malware_json['domain_name'] = domain_name_list
+		malware_json['num_malicious_flow'] = malicious_pcap_number
+
+		with open(json_path, 'w') as json_file_out:
+		    json.dump(malware_json, json_file_out)		    
+		json_file_out.close()	
+		
+	return
+    
     
 def main():
     parser = argparse.ArgumentParser(description='Download SANS OnDemand videos using this script.')
-    parser.add_argument("-d", "--duplicated", help="If the sample has already run, it will deprecate the pcap result.", action="store_true")
-    parser.add_argument("-v", "--virustotal", help="If you have virustotal api key, you can use this parameter.", action="store_true")
-    parser.add_argument("-k", "--keepdns",    help="If you want keep dns query, you can use this parameter.", action="store_true")
-    parser.add_argument("-t", "--timeout",    help="Determine one sample run time.", type=int, default=180)
-    parser.add_argument("-c", "--count",      help="How many time of one sample should run.", type=int, default=1)
+    parser.add_argument("-d", "--duplicated",   help="If the sample has already run, it will deprecate the pcap result.", action="store_true")
+    parser.add_argument("-v", "--virustotal",   help="If you have virustotal api key, you can use this parameter.", action="store_true")
+    parser.add_argument("-k", "--keepdns",      help="If you want keep dns query, you can use this parameter.", action="store_true")
+    parser.add_argument("-t", "--timeout",      help="Determine one sample run time.", type=int, default=180)
+    parser.add_argument("-c", "--count",        help="How many time of one sample should run.", type=int, default=1)
+    parser.add_argument("-j", "--jsonformat",   help="If you want to change record format to json, you can use this parameter.", action="store_true")
+    parser.add_argument("-f", "--filterbenign", help="If you want to filter benign IP, you can use this parameter.", action="store_true")
 
     args = parser.parse_args()
     
@@ -465,9 +531,10 @@ def main():
     
     print("=" * 80)
     exe_number = submit_sample_to_cuckoo(args)  
-    print("Total has " + str(exe_number) + " exe need to run")  
-    
+    print("Total has " + str(exe_number) + " exe need to run") 
+        
     while exe_number > 0:
+
         can_be_check_dirs = get_have_analysis_or_not()
     
         for can_be_check_dir in can_be_check_dirs:
@@ -481,13 +548,17 @@ def main():
 
             split_pcap(can_be_check_dir, exe_name)
 
-            check_pcap_malicious(exe_name, args)
+            ip_info, domain_name_list = check_pcap_malicious(exe_name, args)      
 
-            malicious_pcap_number = check_result(exe_name, args)
-        
+            malicious_pcap_number = check_result(exe_name, args)        
+        	
+            generate_json_analysis(args, ip_info, domain_name_list, malicious_pcap_number)
+            
             print("-" * 80)
-            print(exe_name + " has " + str(malicious_pcap_number) + " malicious flows")
-            print("=" * 80)
+            print("The analysis data have written into the "+ exe_name + ".json")
+            
+            print("-" * 80)
+            print(exe_name + " has " + str(malicious_pcap_number) + " malicious flows")            
             
             exe_number -= 1
             was_analysis_dir.append(can_be_check_dir)
@@ -497,6 +568,8 @@ def main():
                 malicious_exe_number += 1
             else:
                 not_malicious_exe_number += 1
+                
+            print("=" * 80)
             
             cmd = "rm -r " + Input_dir + "/" + can_be_check_dir
             os.system(cmd)
@@ -506,6 +579,7 @@ def main():
     print("Finishing running")
     print("Malicious exe number: " + str(malicious_exe_number))
     print("Benign    exe number: " + str(not_malicious_exe_number))
+
 
     if len(result_dic) > 0:
         write_result_to_csv()
