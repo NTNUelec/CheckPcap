@@ -350,7 +350,12 @@ def check_pcap_malicious(exe_name, args):
     domain_name_list=[]
 
     split_filenames = os.listdir(exe_name)  
-    for split_filename in split_filenames:
+    for i, split_filename in enumerate(split_filenames):
+    	if i > 200:
+            cmd = "rm " + exe_name + "/" + split_filename
+            os.system(cmd)
+            continue
+            
         full_filename = exe_name + "/" + split_filename
         pcap = rdpcap(full_filename)
         is_malisious, flow_dst_ip, flow_dst_ip_country = check_flow_malicious(pcap, args)
@@ -373,7 +378,7 @@ def check_pcap_malicious(exe_name, args):
             default_dns = ["ipv6.msftncsi.com",	"teredo.ipv6.microsoft.com", "1.56.168.192.in-addr.arpa", "dns.msftncsi.com"]
             if flow_dst_ip not in default_dns:
                 domain_name_list.append(flow_dst_ip)
-    
+    	
     return ip_info, list(set(domain_name_list))
 
             
@@ -483,7 +488,7 @@ def check_api_key_state(args):
             return False
 
 
-def generate_json_analysis(args, ip_info, domain_name_list, malicious_pcap_number):
+def generate_json_analysis(args, ip_info, domain_name_list, malicious_pcap_number, exe_name):
 	if args.jsonformat:
 		malware_json = None
 		
@@ -504,7 +509,7 @@ def generate_json_analysis(args, ip_info, domain_name_list, malicious_pcap_numbe
     
     
 def main():
-    parser = argparse.ArgumentParser(description='Download SANS OnDemand videos using this script.')
+    parser = argparse.ArgumentParser(description='The argument introduction.')
     parser.add_argument("-d", "--duplicated",   help="If the sample has already run, it will deprecate the pcap result.", action="store_true")
     parser.add_argument("-v", "--virustotal",   help="If you have virustotal api key, you can use this parameter.", action="store_true")
     parser.add_argument("-k", "--keepdns",      help="If you want keep dns query, you can use this parameter.", action="store_true")
@@ -549,7 +554,7 @@ def main():
 
             malicious_pcap_number = check_result(exe_name, args)        
         	
-            generate_json_analysis(args, ip_info, domain_name_list, malicious_pcap_number)
+            generate_json_analysis(args, ip_info, domain_name_list, malicious_pcap_number, exe_name)
             
             print("-" * 80)
             print("The analysis data have written into the "+ exe_name + ".json")
