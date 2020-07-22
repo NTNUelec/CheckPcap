@@ -13,7 +13,7 @@ This is a script for using cuckoo sandbox to collect the traffic flow.
 ## Submit exe to analyze
 1. The exe name is composed of "md5 value" and ".exe". (e.g., "780fff83b0d5b54fc0488d0dd8d0f4d0.exe")
 2. Put the exe which you want to analyze in "not_analysis/"
-3. Run filter_out_malicious_pcap.py
+3. Run filter_out_malicious_pcap.py (use -h to see the parameter you can adjust, the default setting is using alienvault to filter flow and run one sample in 180s)
 
 ## Get the results
 1. If the exe has malicious flow, you will see the result in has_behavior_malware/
