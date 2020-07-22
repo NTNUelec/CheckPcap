@@ -1,4 +1,5 @@
 # Check_Pcap
+This is a script for using cuckoo sandbox to collect the traffic flow.
 
 ## Get malware(exe)
 1. You can based on https://hackmd.io/yuD9uyblQsiqq9GxESk39w to download malware sample.
