@@ -33,5 +33,5 @@ if os.path.isdir("PcapPlusPlus") == False:
 
 # Link /opt/cuckoo/storage/analyses to Input
 if os.path.isdir(cuckoo_storage_path) == True and os.path.isdir(Input_dir) == False:
-	os.symlink(cuckoo_storage_path, Input_dir)
+	os.symlink(cuckoo_storage_path, Input_dir.split("/")[:-1])
 	
